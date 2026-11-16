@@ -1,4 +1,4 @@
-name: Build DLNA Simulator APK
+name: DLNA Simulator - AUTO UNPACK + APK
 
 on:
   workflow_dispatch:
@@ -8,9 +8,17 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
+      - name: Auto unpack ZIP
+        run: |
+          if [ ! -f settings.gradle ]; then
+            ZIP=$(find . -maxdepth 2 -iname '*.zip' | sort | head -1)
+            test -n "$ZIP" || { echo "Upload Android source ZIP first"; exit 1; }
+            unzip -o "$ZIP" -d .
+          fi
+          test -f settings.gradle
+          test -d app
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
