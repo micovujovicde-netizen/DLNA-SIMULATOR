@@ -13,13 +13,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Unpack source
+      - name: Find and unpack newest ZIP
         shell: bash
         run: |
-          ZIP=$(find . -maxdepth 2 -type f -iname 'TERAPHON_DLNA_SIMULATOR_ANDROID_SOURCE.zip' | head -1)
-          test -n "$ZIP" || exit 1
+          set -euo pipefail
+          ZIP=$(find . -maxdepth 3 -type f -iname '*.zip' -not -path './.git/*' -printf '%T@ %p\n' | sort -nr | head -1 | cut -d' ' -f2-)
+          if [ -z "$ZIP" ]; then
+            echo "ERROR: No ZIP found"
+            exit 1
+          fi
+          echo "Unpacking: $ZIP"
           unzip -o "$ZIP" -d .
-          test -f settings.gradle
+          test -f settings.gradle || test -f settings.gradle.kts
           test -d app
 
       - uses: actions/setup-java@v4
@@ -40,4 +45,4 @@ jobs:
           name: DLNA-SIMULATOR-APK
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-  
+          
