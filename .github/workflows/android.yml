@@ -22,19 +22,6 @@ jobs:
           test -f settings.gradle
           test -d app
 
-      - name: Fix Android keep-screen-on flag
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path("app/src/main/java/com/teraphon/dlnasim/MainActivity.java")
-          s = p.read_text()
-          old = "getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_KEEP_SCREEN_ON)"
-          new = "getWindow().addFlags(128)"
-          assert old in s, "Expected Java line not found"
-          p.write_text(s.replace(old, new))
-          PY
-
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -53,4 +40,4 @@ jobs:
           name: DLNA-SIMULATOR-APK
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-          
+  
