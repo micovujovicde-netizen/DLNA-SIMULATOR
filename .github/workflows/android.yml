@@ -19,7 +19,29 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
+      - name: Prepare Android SDK (API 35)
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          test -d "$sdk_root" || { echo "Android SDK directory not found: $sdk_root"; exit 1; }
+          sdkmanager=$(find "$sdk_root/cmdline-tools" -type f -path '*/bin/sdkmanager' -print | sort -V | tail -n 1)
+          test -x "$sdkmanager" || { echo "sdkmanager not found in $sdk_root"; exit 1; }
+          echo "ANDROID_HOME=$sdk_root" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$sdk_root" >> "$GITHUB_ENV"
+          # Do not request legacy `tools`: removed from modern SDK repositories.
+          set +o pipefail
+          yes | "$sdkmanager" --sdk_root="$sdk_root" --licenses >/dev/null
+          set -o pipefail
+          packages=()
+          test -d "$sdk_root/platforms/android-35" || packages+=("platforms;android-35")
+          test -d "$sdk_root/build-tools/35.0.0" || packages+=("build-tools;35.0.0")
+          test -d "$sdk_root/platform-tools" || packages+=("platform-tools")
+          if (( ${#packages[@]} > 0 )); then
+            "$sdkmanager" --sdk_root="$sdk_root" --install "${packages[@]}"
+          fi
+          echo 'Installed Android SDK packages:'
+          ls "$sdk_root/platforms" "$sdk_root/build-tools"
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
