@@ -1,48 +1,48 @@
-
-name: DLNA Simulator - AUTO BUILD
-
+name: Build TERAPHON Receiver Android
 on:
   workflow_dispatch:
   push:
-    branches: [main]
-
+    paths:
+      - 'TERAPHON_RECEIVER_ANDROID*.zip'
+      - '.github/workflows/android.yml'
+permissions:
+  contents: read
+concurrency:
+  group: a7-receiver-build-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Find and unpack newest ZIP
-        shell: bash
-        run: |
-          set -euo pipefail
-          ZIP=$(find . -maxdepth 3 -type f -iname '*.zip' -not -path './.git/*' -printf '%T@ %p\n' | sort -nr | head -1 | cut -d' ' -f2-)
-          if [ -z "$ZIP" ]; then
-            echo "ERROR: No ZIP found"
-            exit 1
-          fi
-          echo "Unpacking: $ZIP"
-          unzip -o "$ZIP" -d .
-          test -f settings.gradle || test -f settings.gradle.kts
-          test -d app
-
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-
+      - uses: android-actions/setup-android@v3
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-
-      - name: Build APK
-        run: gradle :app:assembleDebug --no-daemon
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - name: Unpack receiver source
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive=$(find . -maxdepth 1 -type f -name 'TERAPHON_RECEIVER_ANDROID*.zip' -printf '%f\n' | sort -V | tail -n 1)
+          test -n "$archive" || { echo 'Upload TERAPHON_RECEIVER_ANDROID source ZIP at repository root'; exit 1; }
+          unzip -tq "$archive"
+          mkdir -p "$RUNNER_TEMP/receiver"
+          unzip -q "$archive" -d "$RUNNER_TEMP/receiver"
+          test -f "$RUNNER_TEMP/receiver/settings.gradle"
+      - name: Verify and build APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/receiver"
+          sh verification/test.sh
+          gradle :app:assembleDebug --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/TERAPHON-RECEIVER-ANDROID.apk"
+      - uses: actions/upload-artifact@v4
         with:
-          name: DLNA-SIMULATOR-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: TERAPHON_RECEIVER_ANDROID_APK
+          path: TERAPHON-RECEIVER-ANDROID.apk
           if-no-files-found: error
-          
